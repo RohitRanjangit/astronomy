@@ -11,6 +11,7 @@
 #include <boost/astronomy/coordinate/cartesian_representation.hpp>
 #include <boost/astronomy/coordinate/spherical_representation.hpp>
 #include <boost/astronomy/coordinate/spherical_equatorial_representation.hpp>
+#include <boost/astronomy/coordinate/differential.hpp>
 
 namespace boost { namespace astronomy { namespace coordinate {
 
@@ -67,6 +68,25 @@ std::ostream& operator<< (std::ostream &out, spherical_representation
     	<< point.get_lat() << " , " 
         << point.get_lon() << " , " 
         << point.get_dist() << " )";
+
+    return out;
+}
+
+//!"<<" operator overload to print details of a spherical_coslat_differential
+template
+<
+    typename CoordinateType,
+    class LatQuantity,
+    class LonQuantity,
+    class DistQuantity
+>
+std::ostream& operator<< (std::ostream &out, spherical_coslat_differential
+	<CoordinateType, LatQuantity, LonQuantity, DistQuantity> const& point)
+{
+    out << "Spherical Coslat Differential ( " 
+    	<< point.get_dlat() << " , " 
+        << point.get_dlon_coslat() << " , " 
+        << point.get_ddist() << " )";
 
     return out;
 }
