@@ -13,6 +13,8 @@
 
 #include <boost/astronomy/coordinate/base_representation.hpp>
 #include <boost/astronomy/coordinate/cartesian_representation.hpp>
+#include <boost/astronomy/coordinate/representation.hpp>
+#include <boost/astronomy/coordinate/differential.hpp>
 
 
 namespace boost { namespace astronomy { namespace coordinate {
@@ -120,6 +122,113 @@ auto cross
         >(result);
 }
 
+//!Returns the cross product of representation1(cartesian differential) and representation2
+template
+<
+    template<typename ...> class Differential2,
+    typename ...Args1,
+    typename ...Args2
+>
+auto cross
+(
+    cartesian_differential<Args1...> const& differential1,
+    Differential2<Args2...> const& differential2
+)
+{
+    /*!both the coordinates/vector are first converted into
+    cartesian coordinate system then cross product of both cartesian
+    vectors is converted into cartesian system type and returned*/
+
+    /*checking types if it is not subclass of   
+    base_representaion then compile time erorr is generated*/
+    //BOOST_STATIC_ASSERT_MSG((boost::astronomy::detail::is_base_template_of
+    //    <
+    //        boost::astronomy::coordinate::base_representation,
+    //        Representation1<Args1...>
+    //    >::value),
+    //    "First argument type is expected to be a representation class");
+    //BOOST_STATIC_ASSERT_MSG((boost::astronomy::detail::is_base_template_of
+    //    <
+    //        boost::astronomy::coordinate::base_representation,
+    //        Representation2<Args2...>
+    //    >::value),
+    //    "Second argument type is expected to be a representation class");
+
+    /*converting both coordinates/vector into cartesian system*/
+
+    typedef cartesian_differential<Args1...> differential1_type;
+    typedef Differential2<Args2...> differential2_type;
+
+    bg::model::point
+    <
+        typename std::conditional
+        <
+            sizeof(typename differential2_type::type) >=
+                sizeof(typename differential1_type::type),
+            typename differential2_type::type,
+            typename differential1_type::type
+        >::type,
+        3,
+        bg::cs::cartesian
+    > tempPoint1, tempPoint2, result;
+
+    auto cartesian1 = make_cartesian_differential(differential1);
+    auto cartesian2 = make_cartesian_differential(differential2);
+
+    typedef decltype(cartesian1) cartesian1_type;
+    typedef decltype(cartesian2) cartesian2_type;
+    
+
+    bg::transform(differential1.get_point(), tempPoint1);
+    bg::transform(differential2.get_point(), tempPoint2);
+    
+
+    bg::set<0>(result, (bg::get<1>(tempPoint1)*bg::get<2>(tempPoint2)) -
+        ((bg::get<2>(tempPoint1)*
+        bu::conversion_factor(typename cartesian1_type::quantity3::unit_type(),
+        typename cartesian1_type::quantity2::unit_type()))*
+        (bg::get<1>(tempPoint2)*
+        bu::conversion_factor(typename cartesian2_type::quantity2::unit_type(),
+        typename cartesian2_type::quantity3::unit_type()))));
+
+    bg::set<1>(result, (bg::get<2>(tempPoint1)*bg::get<0>(tempPoint2)) -
+        ((bg::get<0>(tempPoint1)*
+        bu::conversion_factor(typename cartesian1_type::quantity1::unit_type(),
+        typename cartesian1_type::quantity3::unit_type()))*
+        (bg::get<2>(tempPoint2)*
+        bu::conversion_factor(typename cartesian2_type::quantity3::unit_type(),
+        typename cartesian2_type::quantity1::unit_type()))));
+
+    bg::set<2>(result, (bg::get<0>(tempPoint1)*bg::get<1>(tempPoint2)) -
+        ((bg::get<1>(tempPoint1)*
+        bu::conversion_factor(typename cartesian1_type::quantity2::unit_type(),
+        typename cartesian1_type::quantity1::unit_type()))*
+        (bg::get<0>(tempPoint2)*
+        bu::conversion_factor(typename cartesian2_type::quantity1::unit_type(),
+        typename cartesian2_type::quantity2::unit_type()))));
+
+
+    return 
+        cartesian_differential
+        <
+            typename cartesian1_type::type,
+            bu::quantity<typename bu::multiply_typeof_helper
+            <
+                typename cartesian1_type::quantity2::unit_type,
+                typename cartesian2_type::quantity3::unit_type>::type
+            >,
+            bu::quantity<typename bu::multiply_typeof_helper
+            <
+                typename cartesian1_type::quantity3::unit_type,
+                typename cartesian2_type::quantity1::unit_type>::type
+            >,
+            bu::quantity<typename bu::multiply_typeof_helper
+            <
+                typename cartesian1_type::quantity1::unit_type,
+                typename cartesian2_type::quantity2::unit_type>::type
+            >
+        >(result);
+}
 
 //! Returns dot product of representation1 and representation2
 template<typename Representation1, typename Representation2>
@@ -206,6 +315,46 @@ auto magnitude
 }
 
 
+
+
+//! Returns magnitude of the cartesian differential vector
+template
+<
+    typename CoordinateType,
+    typename XQuantity,
+    typename YQuantity,
+    typename ZQuantity
+>
+auto magnitude
+(
+    cartesian_differential
+    <
+        CoordinateType,
+        XQuantity,
+        YQuantity,
+        ZQuantity
+    > const& vector
+)
+{
+    CoordinateType result = 0;
+    bg::model::point
+    <
+        CoordinateType,
+        3,
+        bg::cs::cartesian
+    > tempPoint;
+
+    bg::set<0>(tempPoint, vector.get_dx().value());
+    bg::set<1>(tempPoint, static_cast<XQuantity>(vector.get_dy()).value());
+    bg::set<2>(tempPoint, static_cast<XQuantity>(vector.get_dz()).value());
+
+    result += std::pow(bg::get<0>(tempPoint), 2) +
+        std::pow(bg::get<1>(tempPoint), 2) +
+        std::pow(bg::get<2>(tempPoint), 2);
+
+    return std::sqrt(result) * typename XQuantity::unit_type();
+}
+
 //! Returns magnitude of the vector other than cartesian
 template <typename Coordinate>
 auto magnitude(Coordinate const& vector)
@@ -239,18 +388,40 @@ unit_vector(cartesian_representation<Args...> const& vector)
     return cartesian_representation<Args...>(tempPoint);
 }
 
+//! Returns the unit vector of vector given
+template <typename ...Args>
+cartesian_differential<Args...>
+unit_vector(cartesian_differential<Args...> const& vector)
+{
+    bg::model::point
+    <
+        typename cartesian_differential<Args...>::type,
+        3,
+        bg::cs::cartesian
+    > tempPoint;
+    auto mag = magnitude(vector); //magnitude of vector
+
+    //performing calculations to find unit vector
+    bg::set<0>(tempPoint, vector.get_dx().value() / mag.value());
+    bg::set<1>(tempPoint,
+        vector.get_dy().value() /
+        static_cast<typename cartesian_differential<Args...>::quantity2>(mag).value());
+    bg::set<2>(tempPoint,
+        vector.get_dz().value() /
+        static_cast<typename cartesian_differential<Args...>::quantity3>(mag).value());
+
+    return cartesian_differential<Args...>(tempPoint);
+}
+
 //! Returns unit vector of given vector other than Cartesian
 template <typename Coordinate>
 auto unit_vector(Coordinate const& vector)
 {
-    Coordinate tempVector;
-
-    tempVector.set_lat(vector.get_lat());
-    tempVector.set_lon(vector.get_lon());
-    tempVector.set_dist(1.0 * typename Coordinate::quantity3::unit_type());
-
-    return tempVector;
+    auto tempPoint = vector.get_point();
+    bg::set<2>(tempPoint,1.0);
+    return Coordinate(tempPoint);
 }
+
 
 
 //! Returns sum of representation1 and representation2 
