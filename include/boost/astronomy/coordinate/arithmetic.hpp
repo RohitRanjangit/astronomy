@@ -311,6 +311,7 @@ auto cross
         typename cartesian2_type::quantity1::unit_type())
     );
 
+    result = bg::cross_product(tempPoint1,tempPoint2);
     return 
         spherical_differential
         <
@@ -405,6 +406,8 @@ auto cross
         typename cartesian2_type::quantity1::unit_type())
     );
 
+    result = bg::cross_product(tempPoint1,tempPoint2);
+
     return 
         spherical_equatorial_differential
         <
@@ -498,6 +501,8 @@ auto cross
         bu::conversion_factor(typename cartesian2_type::quantity3::unit_type(),
         typename cartesian2_type::quantity1::unit_type())
     );
+
+    result = bg::cross_product(tempPoint1,tempPoint2);
 
     return 
         spherical_coslat_differential
