@@ -107,7 +107,29 @@ public:
             <boost::astronomy::coordinate::base_representation, Representation>::value),
             "No constructor found with given argument type");
 
-        bg::transform(other.get_point(), this->point);
+        BOOST_STATIC_ASSERT_MSG(
+        ((std::is_same<typename bu::get_dimension<XQuantity>::type,
+        typename bu::get_dimension<typename Representation::quantity3>::type>::value)),
+        "Two representations must have same dimensions");
+
+        auto tempRep = make_cartesian_representation(other);
+        bg::model::point
+        <
+            typename std::conditional
+            <
+                sizeof(CoordinateType) >= sizeof(typename Representation::type),
+                CoordinateType,
+                typename Representation::type
+            >::type,
+            3,
+            bg::cs::cartesian
+        > tempPoint;
+
+        bg::set<0>(tempPoint,static_cast<XQuantity>(tempRep.get_x()).value());
+        bg::set<1>(tempPoint,static_cast<YQuantity>(tempRep.get_y()).value());
+        bg::set<2>(tempPoint,static_cast<ZQuantity>(tempRep.get_z()).value());
+
+        this->point = tempPoint;
     }
 
     //! Returns the (x, y, z) in the form of tuple

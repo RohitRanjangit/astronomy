@@ -115,10 +115,36 @@ public:
             <boost::astronomy::coordinate::base_differential, Differential>::value),
             "No constructor found with given argument type");
 
-        auto temp = make_spherical_differential(other);
-        temp.set_dlon(temp.get_dlon() * cos(static_cast<bu::quantity
-            <bu::si::plane_angle, CoordinateType>>(temp.get_dlat()).value()));
-        this->diff = temp.get_differential();
+        BOOST_STATIC_ASSERT_MSG(
+        ((std::is_same<typename bu::get_dimension<DistQuantity>::type,
+        typename bu::get_dimension<typename Differential::quantity3>::type>::value)),
+        "Two differentials must have same dimensions");
+
+        auto tempDiff = make_spherical_coslat_differential(other);
+        bg::model::point
+        <
+            typename std::conditional
+            <
+                sizeof(CoordinateType) >= sizeof(typename Differential::type),
+                CoordinateType,
+                typename Differential::type
+            >::type,
+            3,
+            bg::cs::spherical<radian>
+        > tempPoint;
+        
+        bg::set<0>(tempPoint,
+            static_cast<
+            bu::quantity<bu::si::plane_angle, CoordinateType>
+            >(tempDiff.get_dlat()).value());
+        bg::set<1>(tempPoint,
+            static_cast<
+            bu::quantity<bu::si::plane_angle, CoordinateType>
+            >(tempDiff.get_dlon_coslat()).value());
+        bg::set<2>(tempPoint,
+            static_cast<DistQuantity>(tempDiff.get_ddist()).value());
+
+        this->diff = tempPoint;
     }
 
     //! returns the (dlat, dlon_coslat, ddistance) in the form of tuple

@@ -129,8 +129,36 @@ public:
             <boost::astronomy::coordinate::base_representation, Representation>::value),
             "No constructor found with given argument type");
 
-        auto temp = make_spherical_representation(other);
-        bg::transform(temp.get_point(), this->point);
+        BOOST_STATIC_ASSERT_MSG(
+        ((std::is_same<typename bu::get_dimension<DistQuantity>::type,
+        typename bu::get_dimension<typename Representation::quantity3>::type>::value)),
+        "Two representations must have same dimensions");
+
+        auto tempRep = make_spherical_representation(other);
+        bg::model::point
+        <
+            typename std::conditional
+            <
+                sizeof(CoordinateType) >= sizeof(typename Representation::type),
+                CoordinateType,
+                typename Representation::type
+            >::type,
+            3,
+            bg::cs::spherical<radian>
+        > tempPoint;
+        
+        bg::set<0>(tempPoint,
+            static_cast<
+            bu::quantity<bu::si::plane_angle, CoordinateType>
+            >(tempRep.get_lat()).value());
+        bg::set<1>(tempPoint,
+            static_cast<
+            bu::quantity<bu::si::plane_angle, CoordinateType>
+            >(tempRep.get_lon()).value());
+        bg::set<2>(tempPoint,
+            static_cast<DistQuantity>(tempRep.get_dist()).value());
+
+        this->point = tempPoint;
     }
 
     //! returns the (lat, lon, distance) in the form of tuple

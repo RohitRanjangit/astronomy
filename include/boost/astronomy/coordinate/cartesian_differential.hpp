@@ -99,7 +99,29 @@ public:
             <boost::astronomy::coordinate::base_differential, Differential>::value),
             "No constructor found with given argument type");
 
-        bg::transform(other.get_differential(), this->diff);
+        BOOST_STATIC_ASSERT_MSG(
+        ((std::is_same<typename bu::get_dimension<XQuantity>::type,
+        typename bu::get_dimension<typename Differential::quantity3>::type>::value)),
+        "Two differentials must have same dimensions");
+
+        auto tempDiff = make_cartesian_differential(other);
+        bg::model::point
+        <
+            typename std::conditional
+            <
+                sizeof(CoordinateType) >= sizeof(typename Differential::type),
+                CoordinateType,
+                typename Differential::type
+            >::type,
+            3,
+            bg::cs::cartesian
+        > tempPoint;
+
+        bg::set<0>(tempPoint,static_cast<XQuantity>(tempDiff.get_dx()).value());
+        bg::set<1>(tempPoint,static_cast<YQuantity>(tempDiff.get_dy()).value());
+        bg::set<2>(tempPoint,static_cast<ZQuantity>(tempDiff.get_dz()).value());
+
+        this->diff = tempPoint;
     }
 
     //! returns the (dx, dy, dz) in the form of tuple
